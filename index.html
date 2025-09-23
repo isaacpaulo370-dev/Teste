@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Mapa com 3 Cadeados</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2kP4s3w2wYf5gqkGkQ5Qm2k9s4bKZ3f2bYkP4H0=" crossorigin=""/>
+  <title>Sequência de 3 Cadeados</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
     html,body,#map{ height:100%; margin:0; padding:0; }
     body{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
-    .lock-marker{ font-size:22px; line-height:22px; }
+    .lock-marker{ font-size:26px; line-height:26px; }
     .popup-form{ display:flex; gap:8px; align-items:center; }
     .popup-form input{ padding:6px; font-size:14px; }
     .popup-success{ color:green; font-weight:700; }
@@ -18,28 +18,31 @@
 </head>
 <body>
   <div id="map"></div>
-  <div class="topbar">Clique nos cadeados em continentes diferentes para desbloquear uma senha.</div>
+  <div class="topbar">Desbloqueie os 3 cadeados em sequência (1 → 2 → 3).</div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j8k+0v2w1e3h7YqGkQ5Qm2k9s4bKZ3f2bYkP4H0=" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
-    // Senhas — exatamente como você enviou (case-insensitive na checagem)
+    // Cadeados em ordem — senhas fornecidas pelo usuário
     const locks = [
-      {id: 'na', title: 'Cadeado - América do Norte', coords: [40.7128, -74.0060], password: 'Isaac newton'},
-      {id: 'eu', title: 'Cadeado - Europa', coords: [51.5074, -0.1278], password: 'Jully'},
-      {id: 'as', title: 'Cadeado - Ásia', coords: [35.6762, 139.6503], password: 'Samuel'}
+      {idx:0, id: 'c1', title: 'Cadeado 1 - América do Norte', coords: [40.7128, -74.0060], password: 'Isaac newton', unlocked:false},
+      {idx:1, id: 'c2', title: 'Cadeado 2 - Europa', coords: [51.5074, -0.1278], password: 'Jully', unlocked:false},
+      {idx:2, id: 'c3', title: 'Cadeado 3 - Ásia', coords: [35.6762, 139.6503], password: 'Samuel', unlocked:false}
     ];
+
+    let unlockedCount = 0; // quantos já foram desbloqueados em sequência
 
     const map = L.map('map', { zoomControl:true }).setView([20, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors'
     }).addTo(map);
 
-    function makeLockIcon(){
-      return L.divIcon({ className: 'lock-marker', html: '🔒' });
+    function makeLockIcon(isUnlocked){
+      return L.divIcon({ className: 'lock-marker', html: isUnlocked ? '🔓' : '🔒' });
     }
 
+    // Cria marcadores e popups
     locks.forEach(lock => {
-      const marker = L.marker(lock.coords, { icon: makeLockIcon() }).addTo(map);
+      lock.marker = L.marker(lock.coords, { icon: makeLockIcon(lock.unlocked) }).addTo(map);
 
       const popupId = 'popup-' + lock.id;
       const html = `
@@ -53,18 +56,60 @@
         </div>
       `;
 
-      marker.bindPopup(html);
+      lock.marker.bindPopup(html,{ minWidth:220 });
 
-      marker.on('popupopen', () => {
+      lock.marker.on('popupopen', () => {
         const btn = document.getElementById(popupId + '-btn');
         const input = document.getElementById(popupId + '-input');
         const msg = document.getElementById(popupId + '-msg');
+
+        // Se já desbloqueado, mostra que está aberto
+        if(lock.unlocked){
+          msg.innerHTML = `<div class="popup-success">Desbloqueado! &nbsp;"${lock.password}"</div>`;
+          input.style.display = 'none';
+          btn.style.display = 'none';
+          return;
+        }
+
+        // Verifica se é a vez deste cadeado
+        if(lock.idx !== unlockedCount){
+          msg.innerHTML = `<div class="popup-fail">Bloqueado. Primeiro desbloqueie o Cadeado ${unlockedCount + 1}.</div>`;
+          input.disabled = true;
+          btn.disabled = true;
+          return;
+        }
+
+        // Caso seja a vez correta, habilita input
+        msg.innerHTML = '';
+        input.disabled = false;
+        btn.disabled = false;
 
         function tryUnlock(){
           const attempt = (input.value || '').trim().toLowerCase();
           const correct = (lock.password || '').trim().toLowerCase();
           if(attempt === correct){
+            lock.unlocked = true;
+            unlockedCount = Math.max(unlockedCount, lock.idx + 1);
             msg.innerHTML = `<div class="popup-success">Senha correta! &nbsp;"${lock.password}"</div>`;
+            input.style.display = 'none';
+            btn.style.display = 'none';
+            // Atualiza ícone do marcador
+            lock.marker.setIcon(makeLockIcon(true));
+
+            // Se houver próximo cadeado, centraliza e abre o próximo popup após breve pausa
+            if(unlockedCount < locks.length){
+              const next = locks[unlockedCount];
+              setTimeout(()=>{
+                map.setView(next.coords, 4, { animate:true });
+                next.marker.openPopup();
+              }, 700);
+            } else {
+              // todos desbloqueados
+              setTimeout(()=>{
+                map.fitBounds(locks.map(l=>l.coords), { padding:[50,50] });
+                alert('Parabéns — todos os cadeados foram desbloqueados!');
+              }, 600);
+            }
           } else {
             msg.innerHTML = `<div class="popup-fail">Senha incorreta. Tente novamente.</div>`;
           }
@@ -75,8 +120,11 @@
       });
     });
 
-    // Dica simples: centraliza e dá zoom leve se quiser abrir um cadeado automaticamente
-    // map.setView(locks[0].coords, 4);
+    // Abre automaticamente o primeiro cadeado ao carregar
+    window.addEventListener('load', ()=>{
+      map.setView(locks[0].coords, 4);
+      locks[0].marker.openPopup();
+    });
   </script>
 </body>
 </html>
