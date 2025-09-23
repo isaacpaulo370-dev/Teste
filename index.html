@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mapa com 3 Cadeados</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-sA+e2kP4s3w2wYf5gqkGkQ5Qm2k9s4bKZ3f2bYkP4H0=" crossorigin=""/>
+  <style>
+    html,body,#map{ height:100%; margin:0; padding:0; }
+    body{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+    .lock-marker{ font-size:22px; line-height:22px; }
+    .popup-form{ display:flex; gap:8px; align-items:center; }
+    .popup-form input{ padding:6px; font-size:14px; }
+    .popup-success{ color:green; font-weight:700; }
+    .popup-fail{ color:crimson; font-weight:700; }
+    .topbar{ position:absolute; left:10px; top:10px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div class="topbar">Clique nos cadeados em continentes diferentes para desbloquear uma senha.</div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-o9N1j8k+0v2w1e3h7YqGkQ5Qm2k9s4bKZ3f2bYkP4H0=" crossorigin=""></script>
+  <script>
+    // Senhas — exatamente como você enviou (case-insensitive na checagem)
+    const locks = [
+      {id: 'na', title: 'Cadeado - América do Norte', coords: [40.7128, -74.0060], password: 'Isaac newton'},
+      {id: 'eu', title: 'Cadeado - Europa', coords: [51.5074, -0.1278], password: 'Jully'},
+      {id: 'as', title: 'Cadeado - Ásia', coords: [35.6762, 139.6503], password: 'Samuel'}
+    ];
+
+    const map = L.map('map', { zoomControl:true }).setView([20, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors'
+    }).addTo(map);
+
+    function makeLockIcon(){
+      return L.divIcon({ className: 'lock-marker', html: '🔒' });
+    }
+
+    locks.forEach(lock => {
+      const marker = L.marker(lock.coords, { icon: makeLockIcon() }).addTo(map);
+
+      const popupId = 'popup-' + lock.id;
+      const html = `
+        <div>
+          <div style="font-weight:700;margin-bottom:6px;">${lock.title}</div>
+          <div id="${popupId}-msg"></div>
+          <form id="${popupId}-form" class="popup-form" onsubmit="return false;">
+            <input id="${popupId}-input" placeholder="Digite a senha" autocomplete="off" />
+            <button id="${popupId}-btn" type="button">Desbloquear</button>
+          </form>
+        </div>
+      `;
+
+      marker.bindPopup(html);
+
+      marker.on('popupopen', () => {
+        const btn = document.getElementById(popupId + '-btn');
+        const input = document.getElementById(popupId + '-input');
+        const msg = document.getElementById(popupId + '-msg');
+
+        function tryUnlock(){
+          const attempt = (input.value || '').trim().toLowerCase();
+          const correct = (lock.password || '').trim().toLowerCase();
+          if(attempt === correct){
+            msg.innerHTML = `<div class="popup-success">Senha correta! &nbsp;"${lock.password}"</div>`;
+          } else {
+            msg.innerHTML = `<div class="popup-fail">Senha incorreta. Tente novamente.</div>`;
+          }
+        }
+
+        btn.onclick = tryUnlock;
+        input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tryUnlock(); });
+      });
+    });
+
+    // Dica simples: centraliza e dá zoom leve se quiser abrir um cadeado automaticamente
+    // map.setView(locks[0].coords, 4);
+  </script>
+</body>
+</html>
