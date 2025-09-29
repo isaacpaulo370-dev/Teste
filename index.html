@@ -1,93 +1,248 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cadeados por Continente</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Cadeados por Continente — Avião</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
-    :root{ --bg:#e9f0ff; }
-    body{ margin:0; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(160deg,var(--bg),#d6e7ff); }
-    .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card{ background:#fff; padding:24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:800px; width:95%; }
-    .card h1{ margin:0 0 16px 0; font-size:20px; }
-    #airplane{ 
-      display:flex; justify-content:center; align-items:center; 
-      gap:8px; flex-wrap:wrap; 
-      background:#d1e9ff; padding:16px; border-radius:12px; 
-      margin:16px auto; max-width:640px;
+    :root{ --bg:#e9f0ff; --card:#fff; }
+    *{ box-sizing:border-box; }
+    body{ margin:0; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(160deg,var(--bg),#d6e7ff); color:#0b1220; }
+    .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
+    .card{ background:var(--card); padding:20px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:960px; width:100%; }
+    .card h1{ margin:0 0 6px; font-size:20px; }
+    .card p{ margin:0 0 16px; color:#334155; }
+    /* airplane area */
+    .plane-wrap{ position:relative; width:100%; max-width:760px; margin:0 auto 12px; }
+    .plane-svg{ width:100%; height:auto; display:block; border-radius:12px; background:linear-gradient(180deg,#e9f7ff,#cfe8ff); padding:8px; }
+    /* windows (inputs) positioned absolutely over the SVG windows */
+    .windows{
+      position:absolute; left:0; top:0; width:100%; height:100%;
+      pointer-events:none; /* let inputs individually receive events via pointer-events override */
     }
-    #airplane input{
-      width:36px; height:36px; text-align:center; font-size:18px; 
-      border-radius:6px; border:1px solid #888; 
-      text-transform:uppercase;
+    .win{
+      position:absolute; width:40px; height:40px; border-radius:6px;
+      border:2px solid #fff; background:rgba(255,255,255,0.95);
+      display:flex; align-items:center; justify-content:center;
+      font-weight:700; font-size:16px; text-transform:uppercase;
+      pointer-events:auto; /* enable events for inputs container */
+      box-shadow:0 3px 8px rgba(2,6,23,0.12);
     }
-    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; margin-top:12px; }
-    #map{ height:75vh; width:100%; display:none; }
-    .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .win input{
+      width:100%; height:100%; border:none; outline:none; text-align:center;
+      font-size:18px; font-weight:800; background:transparent; text-transform:uppercase;
+      letter-spacing:1px;
+    }
+    .controls{ display:flex; gap:8px; justify-content:center; margin-top:8px; }
+    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
+    #introMsg{ margin-top:8px; font-weight:700; color:crimson; min-height:20px; }
+    /* map area */
+    #map{ height:75vh; width:100%; display:none; border-radius:10px; margin-top:8px; }
+    .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); display:none; }
     .lock-count{ font-weight:700; }
     .leaflet-container{ border-radius:8px; }
+    /* small responsive tweaks */
+    @media (max-width:520px){
+      .win{ width:34px; height:34px; }
+      .plane-wrap{ max-width:340px; }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Tela inicial -->
+  <div class="topbar" id="topbar">Cadeados desbloqueados: <span class="lock-count" id="count">0</span>/6</div>
+
   <div class="center-screen" id="intro">
-    <div class="card">
-      <h1>Desbloqueie o avião para ver os continentes</h1>
-      <p>Cada janela corresponde a uma letra da senha.</p>
-      <div id="airplane"></div>
-      <button id="introBtn">Decolar</button>
-      <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
+    <div class="card" role="main" aria-labelledby="title">
+      <h1 id="title">Desbloqueie o avião para ver os continentes</h1>
+      <p>Cada janela do avião é uma letra da senha. Preencha todas corretamente para decolar.</p>
+
+      <!-- avião SVG + janelas -->
+      <div class="plane-wrap" id="planeWrap" aria-hidden="false">
+        <!-- simples ilustração de avião em SVG -->
+        <svg class="plane-svg" viewBox="0 0 1200 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Avião com janelas">
+          <!-- corpo -->
+          <g transform="translate(0,20)">
+            <rect x="60" y="110" rx="60" ry="60" width="980" height="140" fill="#90cdf4" />
+            <!-- cabine dianteira -->
+            <ellipse cx="1020" cy="180" rx="60" ry="70" fill="#7fb6e9"/>
+            <!-- cauda -->
+            <path d="M60 110 L20 80 L60 180 Z" fill="#7fb6e9"/>
+            <!-- asas -->
+            <path d="M320 240 L640 140 L760 160 L420 260 Z" fill="#60a5fa" opacity="0.95"/>
+            <path d="M700 40 L820 100 L680 120 L620 60 Z" fill="#60a5fa" opacity="0.9"/>
+            <!-- janelas (visual) -->
+            <!-- we'll leave transparent circles to show where inputs sit -->
+            <g id="svg-windows" fill="rgba(255,255,255,0.85)">
+              <!-- positions visually; inputs overlay these -->
+              <circle cx="250" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="320" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="390" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="460" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="530" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="600" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="670" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="740" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="810" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="880" cy="160" r="22" fill="#e6f6ff"/>
+              <circle cx="950" cy="160" r="22" fill="#e6f6ff"/>
+            </g>
+          </g>
+        </svg>
+
+        <!-- Overlaid interactive inputs (absolute positioned) -->
+        <div class="windows" id="windowsContainer" aria-hidden="false">
+          <!-- inputs are created dynamically by JS and absolutely positioned as .win -->
+        </div>
+      </div>
+
+      <div class="controls">
+        <button id="introBtn">Decolar</button>
+        <button id="clearBtn" type="button" style="background:#e2e8f0;color:#0b1220;">Limpar</button>
+      </div>
+
+      <div id="introMsg" aria-live="polite"></div>
     </div>
   </div>
 
-  <!-- Mapa -->
   <div id="mapArea" style="display:none; padding:12px;">
-    <div class="topbar">Cadeados desbloqueados: <span class="lock-count" id="count">0</span>/6</div>
     <div id="map"></div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
-    // senha inicial
+    // senha inicial (11 letras)
     const introPassword = 'continentes';
 
-    // montar avião com janelas
-    const airplaneDiv = document.getElementById('airplane');
-    introPassword.split('').forEach((_,i)=>{
-      const inp = document.createElement('input');
-      inp.maxLength = 1;
-      inp.dataset.index = i;
-      inp.addEventListener('input',(e)=>{
-        e.target.value = e.target.value.toUpperCase();
-        // pular para próxima
-        if(e.target.value && inp.nextElementSibling) inp.nextElementSibling.focus();
+    // POSIÇÕES para as 11 janelas (percentuais relativos à .plane-wrap)
+    // cada objeto: left%, top%, width(px), height(px) - top/left are percent of container
+    // valores aproximados para alinhar sobre os círculos do SVG acima
+    const windowPositions = [
+      { left:20.8, top:34.5 }, // 1
+      { left:27.3, top:34.5 }, // 2
+      { left:33.8, top:34.5 }, // 3
+      { left:40.3, top:34.5 }, // 4
+      { left:46.8, top:34.5 }, // 5
+      { left:53.3, top:34.5 }, // 6
+      { left:59.8, top:34.5 }, // 7
+      { left:66.3, top:34.5 }, // 8
+      { left:72.8, top:34.5 }, // 9
+      { left:79.3, top:34.5 }, // 10
+      { left:85.8, top:34.5 }  // 11
+    ];
+
+    const planeWrap = document.getElementById('planeWrap');
+    const windowsContainer = document.getElementById('windowsContainer');
+
+    // cria inputs dinamicamente
+    const letters = introPassword.split('');
+    const inputs = [];
+
+    function buildWindows(){
+      windowsContainer.innerHTML = '';
+      letters.forEach((ltr, idx) => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'win';
+        // posicionamento relativo por percentuais
+        const pos = windowPositions[idx];
+        wrapper.style.left = pos.left + '%';
+        wrapper.style.top = pos.top + '%';
+        // tamanho responsivo (base)
+        wrapper.style.transform = 'translate(-50%,-50%)';
+        // create input inside
+        const inp = document.createElement('input');
+        inp.setAttribute('inputmode','text');
+        inp.setAttribute('maxlength','1');
+        inp.setAttribute('aria-label','Letra ' + (idx+1));
+        inp.dataset.index = idx;
+        // behavior for paste — allow paste of whole password when pasted into first input
+        inp.addEventListener('paste', (e)=>{
+          e.preventDefault();
+          const txt = (e.clipboardData||window.clipboardData).getData('text') || '';
+          const clean = txt.trim().replace(/\s+/g,'').toLowerCase();
+          // if length matches or >= remaining, fill as much as possible
+          for(let i=0;i<letters.length && i<clean.length;i++){
+            inputs[i].value = clean[i].toUpperCase();
+          }
+          // focus next empty
+          focusNextEmpty();
+        });
+        // input handlers
+        inp.addEventListener('input', (e)=>{
+          const v = e.target.value.toUpperCase().replace(/[^A-ZÀ-Ÿ0-9]/g,'');
+          e.target.value = v;
+          const i = Number(e.target.dataset.index);
+          if(v && i < inputs.length - 1){
+            inputs[i+1].focus();
+            inputs[i+1].select();
+          }
+        });
+        inp.addEventListener('keydown', (e)=>{
+          const i = Number(e.target.dataset.index);
+          if(e.key === 'Backspace' && !e.target.value && i>0){
+            inputs[i-1].focus();
+            inputs[i-1].select();
+            e.preventDefault();
+          } else if(e.key === 'ArrowLeft' && i>0){
+            inputs[i-1].focus();
+            e.preventDefault();
+          } else if(e.key === 'ArrowRight' && i < inputs.length -1){
+            inputs[i+1].focus();
+            e.preventDefault();
+          } else if(e.key === 'Enter'){
+            attemptIntro();
+          }
+        });
+        wrapper.appendChild(inp);
+        windowsContainer.appendChild(wrapper);
+        inputs.push(inp);
       });
-      airplaneDiv.appendChild(inp);
+      // set initial focus to first input
+      setTimeout(()=>{ inputs[0].focus(); }, 60);
+    }
+    buildWindows();
+
+    // helper: focus next empty input
+    function focusNextEmpty(){
+      for(const i of inputs){
+        if(!i.value) { i.focus(); return; }
+      }
+      inputs[inputs.length-1].focus();
+    }
+
+    // clear button
+    document.getElementById('clearBtn').addEventListener('click', ()=>{
+      inputs.forEach(i=>i.value='');
+      inputs[0].focus();
+      document.getElementById('introMsg').textContent='';
     });
 
+    // main attempt
     const introBtn = document.getElementById('introBtn');
     const introMsg = document.getElementById('introMsg');
     const introDiv = document.getElementById('intro');
     const mapArea = document.getElementById('mapArea');
 
-    introBtn.addEventListener('click', tryIntro);
+    introBtn.addEventListener('click', attemptIntro);
 
-    function tryIntro(){
-      const inputs = airplaneDiv.querySelectorAll('input');
-      const attempt = Array.from(inputs).map(i=>i.value).join('').toLowerCase();
+    function attemptIntro(){
+      const attempt = inputs.map(i=> (i.value||'').trim()).join('').toLowerCase();
       if(attempt === introPassword.toLowerCase()){
+        // success: show map
         introDiv.style.display = 'none';
         mapArea.style.display = 'block';
         document.getElementById('map').style.display = 'block';
+        document.getElementById('topbar').style.display = 'block';
         initMap();
       } else {
         introMsg.textContent = 'Senha incorreta. Confira as janelas!';
+        // small shake animation for emphasis (CSS via inline)
+        windowsContainer.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }], { duration: 300, iterations:1 });
       }
     }
 
-    // ----- Map & locks -----
+    /* ----------------- Map & locks (kept behavior from your previous version) ----------------- */
     let map;
     const continentLocks = [
       { id:'america', title:'América', coords:[40.7128, -74.0060], password:'123', unlocked:false },
@@ -101,6 +256,7 @@
     let unlockedCount = 0;
 
     function initMap(){
+      if(map) return; // already init
       map = L.map('map', { zoomControl:true }).setView([20,0], 2);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
@@ -147,8 +303,10 @@
         document.getElementById('count').textContent = unlockedCount;
         lock.marker.setIcon(L.divIcon({ className:'lock-marker', html:'🔓', iconSize:[32,32] }));
         msgEl.innerHTML = `<div style="color:green;font-weight:700;">Senha correta — ${lock.title}</div>`;
-        document.getElementById('input-'+lock.id).style.display = 'none';
-        document.getElementById('btn-'+lock.id).style.display = 'none';
+        const input = document.getElementById('input-'+lock.id);
+        const btn = document.getElementById('btn-'+lock.id);
+        if(input) input.style.display = 'none';
+        if(btn) btn.style.display = 'none';
 
         if(unlockedCount === continentLocks.length){
           setTimeout(()=>{
@@ -162,6 +320,12 @@
         msgEl.innerHTML = `<div style="color:crimson;font-weight:700;">Senha incorreta</div>`;
       }
     }
+
+    // accessibility: adjust positions on resize (keeps relative positions correct)
+    window.addEventListener('resize', () => {
+      // nothing needed currently because we used percentage left/top and translate(-50%,-50%)
+      // but keep this hook if you want to recalc sizes later
+    });
   </script>
 </body>
 </html>
