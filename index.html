@@ -9,32 +9,40 @@
     :root{ --bg:#e9f0ff; }
     body{ margin:0; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(160deg,var(--bg),#d6e7ff); }
     .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; }
-    .card{ background:#fff; padding:24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:720px; width:92%; }
-    .card h1{ margin:0 0 12px 0; font-size:20px; }
-    .card p{ margin:0 0 16px 0; }
-    input{ padding:10px 12px; border-radius:8px; border:1px solid #ccc; width:60%; max-width:320px; margin-right:8px; }
-    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; }
+    .card{ background:#fff; padding:24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:800px; width:95%; }
+    .card h1{ margin:0 0 16px 0; font-size:20px; }
+    #airplane{ 
+      display:flex; justify-content:center; align-items:center; 
+      gap:8px; flex-wrap:wrap; 
+      background:#d1e9ff; padding:16px; border-radius:12px; 
+      margin:16px auto; max-width:640px;
+    }
+    #airplane input{
+      width:36px; height:36px; text-align:center; font-size:18px; 
+      border-radius:6px; border:1px solid #888; 
+      text-transform:uppercase;
+    }
+    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; margin-top:12px; }
     #map{ height:75vh; width:100%; display:none; }
     .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
     .lock-count{ font-weight:700; }
     .leaflet-container{ border-radius:8px; }
-    .hint{ font-size:13px; color:#555; margin-top:8px; }
   </style>
 </head>
 <body>
 
+  <!-- Tela inicial -->
   <div class="center-screen" id="intro">
     <div class="card">
-      <h1>Estamos no continente que muitos pensam que é um país</h1>
-      <p>Digite a senha para exibir o mapa com os cadeados nos continentes.</p>
-      <div>
-        <input id="introInput" placeholder="Digite a senha...">
-        <button id="introBtn">Entrar</button>
-      </div>
+      <h1>Desbloqueie o avião para ver os continentes</h1>
+      <p>Cada janela corresponde a uma letra da senha.</p>
+      <div id="airplane"></div>
+      <button id="introBtn">Decolar</button>
       <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
     </div>
   </div>
 
+  <!-- Mapa -->
   <div id="mapArea" style="display:none; padding:12px;">
     <div class="topbar">Cadeados desbloqueados: <span class="lock-count" id="count">0</span>/6</div>
     <div id="map"></div>
@@ -45,25 +53,37 @@
     // senha inicial
     const introPassword = 'continentes';
 
-    const introInput = document.getElementById('introInput');
+    // montar avião com janelas
+    const airplaneDiv = document.getElementById('airplane');
+    introPassword.split('').forEach((_,i)=>{
+      const inp = document.createElement('input');
+      inp.maxLength = 1;
+      inp.dataset.index = i;
+      inp.addEventListener('input',(e)=>{
+        e.target.value = e.target.value.toUpperCase();
+        // pular para próxima
+        if(e.target.value && inp.nextElementSibling) inp.nextElementSibling.focus();
+      });
+      airplaneDiv.appendChild(inp);
+    });
+
     const introBtn = document.getElementById('introBtn');
     const introMsg = document.getElementById('introMsg');
     const introDiv = document.getElementById('intro');
     const mapArea = document.getElementById('mapArea');
 
     introBtn.addEventListener('click', tryIntro);
-    introInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryIntro(); });
 
     function tryIntro(){
-      const val = (introInput.value||'').trim().toLowerCase();
-      if(val === introPassword.toLowerCase()){
-        // mostrar mapa
+      const inputs = airplaneDiv.querySelectorAll('input');
+      const attempt = Array.from(inputs).map(i=>i.value).join('').toLowerCase();
+      if(attempt === introPassword.toLowerCase()){
         introDiv.style.display = 'none';
         mapArea.style.display = 'block';
         document.getElementById('map').style.display = 'block';
         initMap();
       } else {
-        introMsg.textContent = 'Senha incorreta. Tente novamente.';
+        introMsg.textContent = 'Senha incorreta. Confira as janelas!';
       }
     }
 
@@ -105,9 +125,8 @@
           const input = document.getElementById('input-'+lock.id);
           const msg = document.getElementById('msg-'+lock.id);
 
-          // If already unlocked
           if(lock.unlocked){
-            msg.innerHTML = `<div style=\"color:green;font-weight:700;\">Desbloqueado — ${lock.title}</div>`;
+            msg.innerHTML = `<div style="color:green;font-weight:700;">Desbloqueado — ${lock.title}</div>`;
             input.style.display = 'none';
             btn.style.display = 'none';
             return;
@@ -126,16 +145,11 @@
         lock.unlocked = true;
         unlockedCount++;
         document.getElementById('count').textContent = unlockedCount;
-        // update marker icon to unlocked
         lock.marker.setIcon(L.divIcon({ className:'lock-marker', html:'🔓', iconSize:[32,32] }));
-        msgEl.innerHTML = `<div style=\"color:green;font-weight:700;\">Senha correta — ${lock.title}</div>`;
-        // hide inputs
-        const input = document.getElementById('input-'+lock.id);
-        const btn = document.getElementById('btn-'+lock.id);
-        if(input) input.style.display = 'none';
-        if(btn) btn.style.display = 'none';
+        msgEl.innerHTML = `<div style="color:green;font-weight:700;">Senha correta — ${lock.title}</div>`;
+        document.getElementById('input-'+lock.id).style.display = 'none';
+        document.getElementById('btn-'+lock.id).style.display = 'none';
 
-        // check completion
         if(unlockedCount === continentLocks.length){
           setTimeout(()=>{
             L.popup({closeOnClick:false,autoClose:false})
@@ -145,7 +159,7 @@
           },300);
         }
       } else {
-        msgEl.innerHTML = `<div style=\"color:crimson;font-weight:700;\">Senha incorreta</div>`;
+        msgEl.innerHTML = `<div style="color:crimson;font-weight:700;">Senha incorreta</div>`;
       }
     }
   </script>
