@@ -6,103 +6,55 @@
   <title>Cadeados por Continente — Avião</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
-    :root{ --bg:#e9f0ff; --card:#fff; }
-    *{ box-sizing:border-box; }
-    body{ margin:0; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(160deg,var(--bg),#d6e7ff); color:#0b1220; }
+    body{ margin:0; font-family:system-ui, sans-serif; background:linear-gradient(160deg,#e9f0ff,#d6e7ff); }
     .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
-    .card{ background:var(--card); padding:20px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:960px; width:100%; }
-    .card h1{ margin:0 0 6px; font-size:20px; }
-    .card p{ margin:0 0 16px; color:#334155; }
-    /* airplane area */
+    .card{ background:#fff; padding:20px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:960px; width:100%; }
     .plane-wrap{ position:relative; width:100%; max-width:760px; margin:0 auto 12px; }
-    .plane-svg{ width:100%; height:auto; display:block; border-radius:12px; background:linear-gradient(180deg,#e9f7ff,#cfe8ff); padding:8px; }
-    /* windows (inputs) positioned absolutely over the SVG windows */
-    .windows{
-      position:absolute; left:0; top:0; width:100%; height:100%;
-      pointer-events:none; /* let inputs individually receive events via pointer-events override */
-    }
-    .win{
-      position:absolute; width:40px; height:40px; border-radius:6px;
-      border:2px solid #fff; background:rgba(255,255,255,0.95);
-      display:flex; align-items:center; justify-content:center;
-      font-weight:700; font-size:16px; text-transform:uppercase;
-      pointer-events:auto; /* enable events for inputs container */
-      box-shadow:0 3px 8px rgba(2,6,23,0.12);
-    }
-    .win input{
-      width:100%; height:100%; border:none; outline:none; text-align:center;
-      font-size:18px; font-weight:800; background:transparent; text-transform:uppercase;
-      letter-spacing:1px;
-    }
-    .controls{ display:flex; gap:8px; justify-content:center; margin-top:8px; }
-    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:700; cursor:pointer; }
-    #introMsg{ margin-top:8px; font-weight:700; color:crimson; min-height:20px; }
-    /* map area */
+    .plane-svg{ width:100%; height:auto; display:block; }
+    .windows{ position:absolute; left:0; top:0; width:100%; height:100%; }
+    .win{ position:absolute; width:40px; height:40px; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; background:#fff; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
+    .win input{ width:100%; height:100%; border:none; outline:none; text-align:center; font-size:18px; font-weight:700; text-transform:uppercase; }
+    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; margin-top:8px; }
     #map{ height:75vh; width:100%; display:none; border-radius:10px; margin-top:8px; }
     .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); display:none; }
-    .lock-count{ font-weight:700; }
-    .leaflet-container{ border-radius:8px; }
-    /* small responsive tweaks */
-    @media (max-width:520px){
-      .win{ width:34px; height:34px; }
-      .plane-wrap{ max-width:340px; }
-    }
   </style>
 </head>
 <body>
 
-  <div class="topbar" id="topbar">Cadeados desbloqueados: <span class="lock-count" id="count">0</span>/6</div>
+  <div class="topbar" id="topbar">Cadeados desbloqueados: <span id="count">0</span>/6</div>
 
   <div class="center-screen" id="intro">
-    <div class="card" role="main" aria-labelledby="title">
-      <h1 id="title">Desbloqueie o avião para ver os continentes</h1>
-      <p>Cada janela do avião é uma letra da senha. Preencha todas corretamente para decolar.</p>
+    <div class="card">
+      <h1>Desbloqueie o avião para ver os continentes</h1>
+      <p>Cada janela do avião é uma letra da senha.</p>
 
-      <!-- avião SVG + janelas -->
-      <div class="plane-wrap" id="planeWrap" aria-hidden="false">
-        <!-- simples ilustração de avião em SVG -->
-        <svg class="plane-svg" viewBox="0 0 1200 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Avião com janelas">
-          <!-- corpo -->
-          <g transform="translate(0,20)">
-            <rect x="60" y="110" rx="60" ry="60" width="980" height="140" fill="#90cdf4" />
-            <!-- cabine dianteira -->
-            <ellipse cx="1020" cy="180" rx="60" ry="70" fill="#7fb6e9"/>
-            <!-- cauda -->
-            <path d="M60 110 L20 80 L60 180 Z" fill="#7fb6e9"/>
-            <!-- asas -->
-            <path d="M320 240 L640 140 L760 160 L420 260 Z" fill="#60a5fa" opacity="0.95"/>
-            <path d="M700 40 L820 100 L680 120 L620 60 Z" fill="#60a5fa" opacity="0.9"/>
-            <!-- janelas (visual) -->
-            <!-- we'll leave transparent circles to show where inputs sit -->
-            <g id="svg-windows" fill="rgba(255,255,255,0.85)">
-              <!-- positions visually; inputs overlay these -->
-              <circle cx="250" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="320" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="390" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="460" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="530" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="600" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="670" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="740" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="810" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="880" cy="160" r="22" fill="#e6f6ff"/>
-              <circle cx="950" cy="160" r="22" fill="#e6f6ff"/>
-            </g>
-          </g>
+      <div class="plane-wrap">
+        <!-- Avião SVG -->
+        <svg class="plane-svg" viewBox="0 0 1200 360" xmlns="http://www.w3.org/2000/svg">
+          <rect x="60" y="110" rx="60" ry="60" width="980" height="140" fill="#90cdf4" />
+          <ellipse cx="1020" cy="180" rx="60" ry="70" fill="#7fb6e9"/>
+          <path d="M60 110 L20 80 L60 180 Z" fill="#7fb6e9"/>
+          <path d="M320 240 L640 140 L760 160 L420 260 Z" fill="#60a5fa"/>
+          <path d="M700 40 L820 100 L680 120 L620 60 Z" fill="#60a5fa"/>
+          <!-- Janelas -->
+          <circle cx="250" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="320" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="390" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="460" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="530" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="600" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="670" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="740" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="810" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="880" cy="160" r="22" fill="#e6f6ff"/>
+          <circle cx="950" cy="160" r="22" fill="#e6f6ff"/>
         </svg>
-
-        <!-- Overlaid interactive inputs (absolute positioned) -->
-        <div class="windows" id="windowsContainer" aria-hidden="false">
-          <!-- inputs are created dynamically by JS and absolutely positioned as .win -->
-        </div>
+        <!-- Inputs -->
+        <div class="windows" id="windowsContainer"></div>
       </div>
 
-      <div class="controls">
-        <button id="introBtn">Decolar</button>
-        <button id="clearBtn" type="button" style="background:#e2e8f0;color:#0b1220;">Limpar</button>
-      </div>
-
-      <div id="introMsg" aria-live="polite"></div>
+      <button id="introBtn">Decolar</button>
+      <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
     </div>
   </div>
 
@@ -110,139 +62,52 @@
     <div id="map"></div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
-    // senha inicial (11 letras)
     const introPassword = 'continentes';
+    const vbW = 1200, vbH = 360;
 
-    // POSIÇÕES para as 11 janelas (percentuais relativos à .plane-wrap)
-    // cada objeto: left%, top%, width(px), height(px) - top/left are percent of container
-    // valores aproximados para alinhar sobre os círculos do SVG acima
-    const windowPositions = [
-      { left:20.8, top:34.5 }, // 1
-      { left:27.3, top:34.5 }, // 2
-      { left:33.8, top:34.5 }, // 3
-      { left:40.3, top:34.5 }, // 4
-      { left:46.8, top:34.5 }, // 5
-      { left:53.3, top:34.5 }, // 6
-      { left:59.8, top:34.5 }, // 7
-      { left:66.3, top:34.5 }, // 8
-      { left:72.8, top:34.5 }, // 9
-      { left:79.3, top:34.5 }, // 10
-      { left:85.8, top:34.5 }  // 11
+    // mesmas coordenadas cx/cy das janelas no SVG
+    const windowCoords = [
+      {cx:250,cy:160}, {cx:320,cy:160}, {cx:390,cy:160},
+      {cx:460,cy:160}, {cx:530,cy:160}, {cx:600,cy:160},
+      {cx:670,cy:160}, {cx:740,cy:160}, {cx:810,cy:160},
+      {cx:880,cy:160}, {cx:950,cy:160}
     ];
 
-    const planeWrap = document.getElementById('planeWrap');
     const windowsContainer = document.getElementById('windowsContainer');
-
-    // cria inputs dinamicamente
-    const letters = introPassword.split('');
     const inputs = [];
-
-    function buildWindows(){
-      windowsContainer.innerHTML = '';
-      letters.forEach((ltr, idx) => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'win';
-        // posicionamento relativo por percentuais
-        const pos = windowPositions[idx];
-        wrapper.style.left = pos.left + '%';
-        wrapper.style.top = pos.top + '%';
-        // tamanho responsivo (base)
-        wrapper.style.transform = 'translate(-50%,-50%)';
-        // create input inside
-        const inp = document.createElement('input');
-        inp.setAttribute('inputmode','text');
-        inp.setAttribute('maxlength','1');
-        inp.setAttribute('aria-label','Letra ' + (idx+1));
-        inp.dataset.index = idx;
-        // behavior for paste — allow paste of whole password when pasted into first input
-        inp.addEventListener('paste', (e)=>{
-          e.preventDefault();
-          const txt = (e.clipboardData||window.clipboardData).getData('text') || '';
-          const clean = txt.trim().replace(/\s+/g,'').toLowerCase();
-          // if length matches or >= remaining, fill as much as possible
-          for(let i=0;i<letters.length && i<clean.length;i++){
-            inputs[i].value = clean[i].toUpperCase();
-          }
-          // focus next empty
-          focusNextEmpty();
-        });
-        // input handlers
-        inp.addEventListener('input', (e)=>{
-          const v = e.target.value.toUpperCase().replace(/[^A-ZÀ-Ÿ0-9]/g,'');
-          e.target.value = v;
-          const i = Number(e.target.dataset.index);
-          if(v && i < inputs.length - 1){
-            inputs[i+1].focus();
-            inputs[i+1].select();
-          }
-        });
-        inp.addEventListener('keydown', (e)=>{
-          const i = Number(e.target.dataset.index);
-          if(e.key === 'Backspace' && !e.target.value && i>0){
-            inputs[i-1].focus();
-            inputs[i-1].select();
-            e.preventDefault();
-          } else if(e.key === 'ArrowLeft' && i>0){
-            inputs[i-1].focus();
-            e.preventDefault();
-          } else if(e.key === 'ArrowRight' && i < inputs.length -1){
-            inputs[i+1].focus();
-            e.preventDefault();
-          } else if(e.key === 'Enter'){
-            attemptIntro();
-          }
-        });
-        wrapper.appendChild(inp);
-        windowsContainer.appendChild(wrapper);
-        inputs.push(inp);
+    introPassword.split('').forEach((_,i)=>{
+      const div = document.createElement('div');
+      div.className = 'win';
+      div.style.left = (windowCoords[i].cx/vbW*100)+'%';
+      div.style.top  = (windowCoords[i].cy/vbH*100)+'%';
+      const inp = document.createElement('input');
+      inp.maxLength=1;
+      inp.dataset.index=i;
+      inp.addEventListener('input',e=>{
+        e.target.value = e.target.value.toUpperCase();
+        if(e.target.value && i<introPassword.length-1) inputs[i+1].focus();
       });
-      // set initial focus to first input
-      setTimeout(()=>{ inputs[0].focus(); }, 60);
-    }
-    buildWindows();
-
-    // helper: focus next empty input
-    function focusNextEmpty(){
-      for(const i of inputs){
-        if(!i.value) { i.focus(); return; }
-      }
-      inputs[inputs.length-1].focus();
-    }
-
-    // clear button
-    document.getElementById('clearBtn').addEventListener('click', ()=>{
-      inputs.forEach(i=>i.value='');
-      inputs[0].focus();
-      document.getElementById('introMsg').textContent='';
+      div.appendChild(inp);
+      windowsContainer.appendChild(div);
+      inputs.push(inp);
     });
 
-    // main attempt
-    const introBtn = document.getElementById('introBtn');
-    const introMsg = document.getElementById('introMsg');
-    const introDiv = document.getElementById('intro');
-    const mapArea = document.getElementById('mapArea');
-
-    introBtn.addEventListener('click', attemptIntro);
-
-    function attemptIntro(){
-      const attempt = inputs.map(i=> (i.value||'').trim()).join('').toLowerCase();
-      if(attempt === introPassword.toLowerCase()){
-        // success: show map
-        introDiv.style.display = 'none';
-        mapArea.style.display = 'block';
-        document.getElementById('map').style.display = 'block';
-        document.getElementById('topbar').style.display = 'block';
+    document.getElementById('introBtn').onclick = ()=>{
+      const attempt = inputs.map(i=>i.value).join('').toLowerCase();
+      if(attempt===introPassword){
+        document.getElementById('intro').style.display='none';
+        document.getElementById('mapArea').style.display='block';
+        document.getElementById('map').style.display='block';
+        document.getElementById('topbar').style.display='block';
         initMap();
       } else {
-        introMsg.textContent = 'Senha incorreta. Confira as janelas!';
-        // small shake animation for emphasis (CSS via inline)
-        windowsContainer.animate([{ transform: 'translateX(0)' }, { transform: 'translateX(-8px)' }, { transform: 'translateX(8px)' }, { transform: 'translateX(0)' }], { duration: 300, iterations:1 });
+        document.getElementById('introMsg').textContent='Senha incorreta!';
       }
-    }
+    };
 
-    /* ----------------- Map & locks (kept behavior from your previous version) ----------------- */
+    // ----- MAPA -----
     let map;
     const continentLocks = [
       { id:'america', title:'América', coords:[40.7128, -74.0060], password:'123', unlocked:false },
@@ -250,82 +115,44 @@
       { id:'oceania', title:'Oceania', coords:[-33.8688,151.2093], password:'123', unlocked:false },
       { id:'asia', title:'Ásia', coords:[35.6762,139.6503], password:'123', unlocked:false },
       { id:'africa', title:'África', coords:[-1.2921,36.8219], password:'123', unlocked:false },
-      { id:'antarctica', title:'Antártica', coords:[-82, 135], password:'123', unlocked:false }
+      { id:'antarctica', title:'Antártica', coords:[-82,135], password:'123', unlocked:false }
     ];
-
-    let unlockedCount = 0;
+    let unlockedCount=0;
 
     function initMap(){
-      if(map) return; // already init
-      map = L.map('map', { zoomControl:true }).setView([20,0], 2);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      map=L.map('map').setView([20,0],2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
 
-      continentLocks.forEach(lock => {
-        lock.marker = L.marker(lock.coords, { icon: L.divIcon({ className:'lock-marker', html:'🔒', iconSize:[32,32] }) }).addTo(map);
-
-        const popupHtml = `
-          <div style="min-width:220px;">
-            <div style="font-weight:700;margin-bottom:6px;">${lock.title}</div>
+      continentLocks.forEach(lock=>{
+        lock.marker=L.marker(lock.coords,{icon:L.divIcon({html:'🔒',iconSize:[32,32]})}).addTo(map);
+        const html=`
+          <div>
+            <div style="font-weight:700">${lock.title}</div>
             <div id="msg-${lock.id}"></div>
-            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
-              <input id="input-${lock.id}" placeholder="Senha" style="flex:1;padding:6px;border-radius:6px;border:1px solid #ccc;" />
-              <button id="btn-${lock.id}" style="padding:6px 8px;border-radius:6px;border:none;background:#16a34a;color:#fff;cursor:pointer;">OK</button>
-            </div>
-          </div>
-        `;
-
-        lock.marker.bindPopup(popupHtml);
-
-        lock.marker.on('popupopen', ()=>{
-          const btn = document.getElementById('btn-'+lock.id);
-          const input = document.getElementById('input-'+lock.id);
-          const msg = document.getElementById('msg-'+lock.id);
-
-          if(lock.unlocked){
-            msg.innerHTML = `<div style="color:green;font-weight:700;">Desbloqueado — ${lock.title}</div>`;
-            input.style.display = 'none';
-            btn.style.display = 'none';
-            return;
-          }
-
-          btn.onclick = ()=>{ attemptLock(lock, input.value, msg); };
-          input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptLock(lock, input.value, msg); });
+            <input id="input-${lock.id}" placeholder="Senha" style="width:100%;margin-top:6px"/>
+            <button id="btn-${lock.id}">OK</button>
+          </div>`;
+        lock.marker.bindPopup(html);
+        lock.marker.on('popupopen',()=>{
+          const inp=document.getElementById('input-'+lock.id);
+          const btn=document.getElementById('btn-'+lock.id);
+          const msg=document.getElementById('msg-'+lock.id);
+          btn.onclick=()=>attemptLock(lock,inp.value,msg);
         });
       });
     }
 
-    function attemptLock(lock, attemptRaw, msgEl){
-      const attempt = (attemptRaw||'').trim().toLowerCase();
-      const correct = (lock.password||'').toLowerCase();
-      if(attempt === correct){
-        lock.unlocked = true;
+    function attemptLock(lock,attemptRaw,msgEl){
+      if(attemptRaw===lock.password){
+        lock.unlocked=true;
         unlockedCount++;
-        document.getElementById('count').textContent = unlockedCount;
-        lock.marker.setIcon(L.divIcon({ className:'lock-marker', html:'🔓', iconSize:[32,32] }));
-        msgEl.innerHTML = `<div style="color:green;font-weight:700;">Senha correta — ${lock.title}</div>`;
-        const input = document.getElementById('input-'+lock.id);
-        const btn = document.getElementById('btn-'+lock.id);
-        if(input) input.style.display = 'none';
-        if(btn) btn.style.display = 'none';
-
-        if(unlockedCount === continentLocks.length){
-          setTimeout(()=>{
-            L.popup({closeOnClick:false,autoClose:false})
-              .setLatLng(map.getCenter())
-              .setContent('<div style="font-weight:700;">Parabéns — você desbloqueou todos os cadeados dos continentes!</div>')
-              .openOn(map);
-          },300);
-        }
+        document.getElementById('count').textContent=unlockedCount;
+        lock.marker.setIcon(L.divIcon({html:'🔓',iconSize:[32,32]}));
+        msgEl.innerHTML='<span style="color:green">Correto!</span>';
       } else {
-        msgEl.innerHTML = `<div style="color:crimson;font-weight:700;">Senha incorreta</div>`;
+        msgEl.innerHTML='<span style="color:red">Errado</span>';
       }
     }
-
-    // accessibility: adjust positions on resize (keeps relative positions correct)
-    window.addEventListener('resize', () => {
-      // nothing needed currently because we used percentage left/top and translate(-50%,-50%)
-      // but keep this hook if you want to recalc sizes later
-    });
   </script>
 </body>
 </html>
