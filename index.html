@@ -3,128 +3,155 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sequência de 3 Cadeados</title>
+  <title>Cadeados por Continente</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
   <style>
-    html,body,#map{ height:100%; margin:0; padding:0; }
-    body{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
-    .lock-marker{ font-size:26px; line-height:26px; }
-    .popup-form{ display:flex; gap:8px; align-items:center; }
-    .popup-form input{ padding:6px; font-size:14px; }
-    .popup-success{ color:green; font-weight:700; }
-    .popup-fail{ color:crimson; font-weight:700; }
-    .topbar{ position:absolute; left:10px; top:10px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+    :root{ --bg:#e9f0ff; }
+    body{ margin:0; font-family:system-ui, -apple-system, 'Segoe UI', Roboto, Arial; background:linear-gradient(160deg,var(--bg),#d6e7ff); }
+    .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .card{ background:#fff; padding:24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:720px; width:92%; }
+    .card h1{ margin:0 0 12px 0; font-size:20px; }
+    .card p{ margin:0 0 16px 0; }
+    input{ padding:10px 12px; border-radius:8px; border:1px solid #ccc; width:60%; max-width:320px; margin-right:8px; }
+    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; }
+    #map{ height:75vh; width:100%; display:none; }
+    .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); }
+    .lock-count{ font-weight:700; }
+    .leaflet-container{ border-radius:8px; }
+    .hint{ font-size:13px; color:#555; margin-top:8px; }
   </style>
 </head>
 <body>
-  <div id="map"></div>
-  <div class="topbar">Desbloqueie os 3 cadeados em sequência (1 → 2 → 3).</div>
+
+  <div class="center-screen" id="intro">
+    <div class="card">
+      <h1>Estamos no continente que muitos pensam que é um país</h1>
+      <p>Digite a senha para exibir o mapa com os cadeados nos continentes.</p>
+      <div>
+        <input id="introInput" placeholder="Digite a senha...">
+        <button id="introBtn">Entrar</button>
+      </div>
+      <div class="hint">Dica: a senha do primeiro é <strong>continentes</strong> (sem acentos, case-insensitive).</div>
+      <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
+    </div>
+  </div>
+
+  <div id="mapArea" style="display:none; padding:12px;">
+    <div class="topbar">Cadeados desbloqueados: <span class="lock-count" id="count">0</span>/6</div>
+    <div id="map"></div>
+    <div style="text-align:center; margin:12px 0;">
+      <div class="hint">Os cadeados dos continentes podem ser respondidos em qualquer ordem. Senha de cada continente: <strong>123</strong></div>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script>
-    // Cadeados em ordem — senhas fornecidas pelo usuário
-    const locks = [
-      {idx:0, id: 'c1', title: 'Cadeado 1 - América do Norte', coords: [40.7128, -74.0060], password: 'Isaac newton', unlocked:false},
-      {idx:1, id: 'c2', title: 'Cadeado 2 - Europa', coords: [51.5074, -0.1278], password: 'Jully', unlocked:false},
-      {idx:2, id: 'c3', title: 'Cadeado 3 - Ásia', coords: [35.6762, 139.6503], password: 'Samuel', unlocked:false}
-    ];
+    // senha inicial
+    const introPassword = 'continentes';
 
-    let unlockedCount = 0; // quantos já foram desbloqueados em sequência
+    const introInput = document.getElementById('introInput');
+    const introBtn = document.getElementById('introBtn');
+    const introMsg = document.getElementById('introMsg');
+    const introDiv = document.getElementById('intro');
+    const mapArea = document.getElementById('mapArea');
 
-    const map = L.map('map', { zoomControl:true }).setView([20, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(map);
+    introBtn.addEventListener('click', tryIntro);
+    introInput.addEventListener('keydown', (e)=>{ if(e.key==='Enter') tryIntro(); });
 
-    function makeLockIcon(isUnlocked){
-      return L.divIcon({ className: 'lock-marker', html: isUnlocked ? '🔓' : '🔒' });
+    function tryIntro(){
+      const val = (introInput.value||'').trim().toLowerCase();
+      if(val === introPassword.toLowerCase()){
+        // mostrar mapa
+        introDiv.style.display = 'none';
+        mapArea.style.display = 'block';
+        document.getElementById('map').style.display = 'block';
+        initMap();
+      } else {
+        introMsg.textContent = 'Senha incorreta. Tente novamente.';
+      }
     }
 
-    // Cria marcadores e popups
-    locks.forEach(lock => {
-      lock.marker = L.marker(lock.coords, { icon: makeLockIcon(lock.unlocked) }).addTo(map);
+    // ----- Map & locks -----
+    let map;
+    const continentLocks = [
+      { id:'america', title:'América', coords:[40.7128, -74.0060], password:'123', unlocked:false },
+      { id:'europa', title:'Europa', coords:[51.5074, -0.1278], password:'123', unlocked:false },
+      { id:'oceania', title:'Oceania', coords:[-33.8688,151.2093], password:'123', unlocked:false },
+      { id:'asia', title:'Ásia', coords:[35.6762,139.6503], password:'123', unlocked:false },
+      { id:'africa', title:'África', coords:[-1.2921,36.8219], password:'123', unlocked:false },
+      { id:'antarctica', title:'Antártica', coords:[-82, 135], password:'123', unlocked:false }
+    ];
 
-      const popupId = 'popup-' + lock.id;
-      const html = `
-        <div>
-          <div style="font-weight:700;margin-bottom:6px;">${lock.title}</div>
-          <div id="${popupId}-msg"></div>
-          <form id="${popupId}-form" class="popup-form" onsubmit="return false;">
-            <input id="${popupId}-input" placeholder="Digite a senha" autocomplete="off" />
-            <button id="${popupId}-btn" type="button">Desbloquear</button>
-          </form>
-        </div>
-      `;
+    let unlockedCount = 0;
 
-      lock.marker.bindPopup(html,{ minWidth:220 });
+    function initMap(){
+      map = L.map('map', { zoomControl:true }).setView([20,0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
 
-      lock.marker.on('popupopen', () => {
-        const btn = document.getElementById(popupId + '-btn');
-        const input = document.getElementById(popupId + '-input');
-        const msg = document.getElementById(popupId + '-msg');
+      continentLocks.forEach(lock => {
+        lock.marker = L.marker(lock.coords, { icon: L.divIcon({ className:'lock-marker', html:'🔒', iconSize:[32,32] }) }).addTo(map);
 
-        // Se já desbloqueado, mostra que está aberto
-        if(lock.unlocked){
-          msg.innerHTML = `<div class="popup-success">Desbloqueado! &nbsp;"${lock.password}"</div>`;
-          input.style.display = 'none';
-          btn.style.display = 'none';
-          return;
-        }
+        const popupHtml = `
+          <div style="min-width:220px;">
+            <div style="font-weight:700;margin-bottom:6px;">${lock.title}</div>
+            <div id="msg-${lock.id}"></div>
+            <div style="display:flex;gap:8px;align-items:center;margin-top:6px;">
+              <input id="input-${lock.id}" placeholder="Senha" style="flex:1;padding:6px;border-radius:6px;border:1px solid #ccc;" />
+              <button id="btn-${lock.id}" style="padding:6px 8px;border-radius:6px;border:none;background:#16a34a;color:#fff;cursor:pointer;">OK</button>
+            </div>
+          </div>
+        `;
 
-        // Verifica se é a vez deste cadeado
-        if(lock.idx !== unlockedCount){
-          msg.innerHTML = `<div class="popup-fail">Bloqueado. Primeiro desbloqueie o Cadeado ${unlockedCount + 1}.</div>`;
-          input.disabled = true;
-          btn.disabled = true;
-          return;
-        }
+        lock.marker.bindPopup(popupHtml);
 
-        // Caso seja a vez correta, habilita input
-        msg.innerHTML = '';
-        input.disabled = false;
-        btn.disabled = false;
+        lock.marker.on('popupopen', ()=>{
+          const btn = document.getElementById('btn-'+lock.id);
+          const input = document.getElementById('input-'+lock.id);
+          const msg = document.getElementById('msg-'+lock.id);
 
-        function tryUnlock(){
-          const attempt = (input.value || '').trim().toLowerCase();
-          const correct = (lock.password || '').trim().toLowerCase();
-          if(attempt === correct){
-            lock.unlocked = true;
-            unlockedCount = Math.max(unlockedCount, lock.idx + 1);
-            msg.innerHTML = `<div class="popup-success">Senha correta! &nbsp;"${lock.password}"</div>`;
+          // If already unlocked
+          if(lock.unlocked){
+            msg.innerHTML = `<div style=\"color:green;font-weight:700;\">Desbloqueado — ${lock.title}</div>`;
             input.style.display = 'none';
             btn.style.display = 'none';
-            // Atualiza ícone do marcador
-            lock.marker.setIcon(makeLockIcon(true));
-
-            // Se houver próximo cadeado, centraliza e abre o próximo popup após breve pausa
-            if(unlockedCount < locks.length){
-              const next = locks[unlockedCount];
-              setTimeout(()=>{
-                map.setView(next.coords, 4, { animate:true });
-                next.marker.openPopup();
-              }, 700);
-            } else {
-              // todos desbloqueados
-              setTimeout(()=>{
-                map.fitBounds(locks.map(l=>l.coords), { padding:[50,50] });
-                alert('Parabéns — todos os cadeados foram desbloqueados!');
-              }, 600);
-            }
-          } else {
-            msg.innerHTML = `<div class="popup-fail">Senha incorreta. Tente novamente.</div>`;
+            return;
           }
-        }
 
-        btn.onclick = tryUnlock;
-        input.addEventListener('keydown', (e)=>{ if(e.key === 'Enter') tryUnlock(); });
+          btn.onclick = ()=>{ attemptLock(lock, input.value, msg); };
+          input.addEventListener('keydown', (e)=>{ if(e.key==='Enter') attemptLock(lock, input.value, msg); });
+        });
       });
-    });
+    }
 
-    // Abre automaticamente o primeiro cadeado ao carregar
-    window.addEventListener('load', ()=>{
-      map.setView(locks[0].coords, 4);
-      locks[0].marker.openPopup();
-    });
+    function attemptLock(lock, attemptRaw, msgEl){
+      const attempt = (attemptRaw||'').trim().toLowerCase();
+      const correct = (lock.password||'').toLowerCase();
+      if(attempt === correct){
+        lock.unlocked = true;
+        unlockedCount++;
+        document.getElementById('count').textContent = unlockedCount;
+        // update marker icon to unlocked
+        lock.marker.setIcon(L.divIcon({ className:'lock-marker', html:'🔓', iconSize:[32,32] }));
+        msgEl.innerHTML = `<div style=\"color:green;font-weight:700;\">Senha correta — ${lock.title}</div>`;
+        // hide inputs
+        const input = document.getElementById('input-'+lock.id);
+        const btn = document.getElementById('btn-'+lock.id);
+        if(input) input.style.display = 'none';
+        if(btn) btn.style.display = 'none';
+
+        // check completion
+        if(unlockedCount === continentLocks.length){
+          setTimeout(()=>{
+            L.popup({closeOnClick:false,autoClose:false})
+              .setLatLng(map.getCenter())
+              .setContent('<div style="font-weight:700;">Parabéns — você desbloqueou todos os cadeados dos continentes!</div>')
+              .openOn(map);
+          },300);
+        }
+      } else {
+        msgEl.innerHTML = `<div style=\"color:crimson;font-weight:700;\">Senha incorreta</div>`;
+      }
+    }
   </script>
 </body>
 </html>
