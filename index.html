@@ -17,6 +17,7 @@
     button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; margin-top:8px; }
     #map{ height:75vh; width:100%; display:none; border-radius:10px; margin-top:8px; }
     .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); display:none; }
+    .hint{ font-size:13px; color:#555; margin-top:6px; }
   </style>
 </head>
 <body>
@@ -53,6 +54,8 @@
         <div class="windows" id="windowsContainer"></div>
       </div>
 
+      <div class="hint">Dica: o que cada envelope tem em comum?</div>
+
       <button id="introBtn">Decolar</button>
       <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
     </div>
@@ -67,7 +70,6 @@
     const introPassword = 'continentes';
     const vbW = 1200, vbH = 360;
 
-    // mesmas coordenadas cx/cy das janelas no SVG
     const windowCoords = [
       {cx:250,cy:160}, {cx:320,cy:160}, {cx:390,cy:160},
       {cx:460,cy:160}, {cx:530,cy:160}, {cx:600,cy:160},
@@ -110,12 +112,12 @@
     // ----- MAPA -----
     let map;
     const continentLocks = [
-      { id:'america', title:'América', coords:[40.7128, -74.0060], password:'123', unlocked:false },
-      { id:'europa', title:'Europa', coords:[51.5074, -0.1278], password:'123', unlocked:false },
-      { id:'oceania', title:'Oceania', coords:[-33.8688,151.2093], password:'123', unlocked:false },
-      { id:'asia', title:'Ásia', coords:[35.6762,139.6503], password:'123', unlocked:false },
-      { id:'africa', title:'África', coords:[-1.2921,36.8219], password:'123', unlocked:false },
-      { id:'antarctica', title:'Antártica', coords:[-82,135], password:'123', unlocked:false }
+      { id:'america', title:'América', coords:[40.7128, -74.0060], password:'arara azul', unlocked:false },
+      { id:'europa', title:'Europa', coords:[51.5074, -0.1278], password:'olimpíadas', unlocked:false },
+      { id:'oceania', title:'Oceania', coords:[-33.8688,151.2093], password:'Austrália', unlocked:false },
+      { id:'asia', title:'Ásia', coords:[35.6762,139.6503], password:'China', unlocked:false },
+      { id:'africa', title:'África', coords:[-1.2921,36.8219], password:'Rio Nilo', unlocked:false },
+      { id:'antarctica', title:'Antártica', coords:[-82,135], password:'clima', unlocked:false }
     ];
     let unlockedCount=0;
 
@@ -149,6 +151,14 @@
         document.getElementById('count').textContent=unlockedCount;
         lock.marker.setIcon(L.divIcon({html:'🔓',iconSize:[32,32]}));
         msgEl.innerHTML='<span style="color:green">Correto!</span>';
+        if(unlockedCount === continentLocks.length){
+          setTimeout(()=>{
+            L.popup({closeOnClick:false,autoClose:false})
+              .setLatLng(map.getCenter())
+              .setContent('<div style="font-weight:700;">Parabéns — você desbloqueou todos os cadeados dos continentes! Boa viagem! ✈️</div>')
+              .openOn(map);
+          },300);
+        }
       } else {
         msgEl.innerHTML='<span style="color:red">Errado</span>';
       }
