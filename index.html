@@ -3,166 +3,143 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Cadeados por Continente — Avião</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <title>Impacto do Celular na Geração Z</title>
   <style>
-    body{ margin:0; font-family:system-ui, sans-serif; background:linear-gradient(160deg,#e9f0ff,#d6e7ff); }
-    .center-screen{ display:flex; align-items:center; justify-content:center; min-height:100vh; padding:20px; }
-    .card{ background:#fff; padding:20px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.08); text-align:center; max-width:960px; width:100%; }
-    .plane-wrap{ position:relative; width:100%; max-width:760px; margin:0 auto 12px; }
-    .plane-svg{ width:100%; height:auto; display:block; }
-    .windows{ position:absolute; left:0; top:0; width:100%; height:100%; }
-    .win{ position:absolute; width:40px; height:40px; transform:translate(-50%,-50%); display:flex; align-items:center; justify-content:center; background:#fff; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.2); }
-    .win input{ width:100%; height:100%; border:none; outline:none; text-align:center; font-size:18px; font-weight:700; text-transform:uppercase; }
-    button{ padding:10px 14px; border-radius:8px; border:none; background:#2563eb; color:#fff; font-weight:600; cursor:pointer; margin-top:8px; }
-    #map{ height:75vh; width:100%; display:none; border-radius:10px; margin-top:8px; }
-    .topbar{ position:fixed; left:12px; top:12px; z-index:1000; background:#fff; padding:8px 12px; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); display:none; }
-    .hint{ font-size:13px; color:#555; margin-top:6px; }
+    :root{
+      --teal:#2f9d98;
+      --muted:#4e6b6a;
+      --accent-pink:#ff78a8;
+      --card-bg:#ffffff;
+      --page-bg:#f6f8f9;
+      --danger:#b33e3e;
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family: "Inter", "Helvetica Neue", Arial, sans-serif;background:var(--page-bg);color:#062a29}
+    .container{max-width:1100px;margin:28px auto;padding:20px;}
+    .header{
+      display:flex;gap:18px;align-items:center;margin-bottom:18px;
+    }
+    .badge{
+      background:linear-gradient(180deg,var(--accent-pink) 0%, #ff9cc2 60%);
+      width:170px;height:170px;border-radius:12px;display:flex;align-items:center;justify-content:center;
+      color:white;font-weight:800;font-size:56px;transform:skewX(-6deg);box-shadow:0 10px 18px rgba(0,0,0,0.08)
+    }
+    .badge .inner{transform:skewX(6deg);text-align:center}
+    .badge .sub{font-size:18px;opacity:0.95;margin-top:4px}
+    .hero{
+      flex:1;padding:14px;border-radius:10px;background:linear-gradient(180deg,#dff3f2,#e9fbfa);box-shadow:0 8px 18px rgba(0,0,0,0.04);
+    }
+    .hero h1{margin:0;color:var(--teal);font-size:20px}
+    .hero p{margin:8px 0 0;color:var(--muted);font-weight:600}
+    .meta{font-size:13px;color:#6a7f7e;margin-top:6px}
+
+    .grid{
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:18px;
+      margin-top:16px;
+    }
+    .card{background:var(--card-bg);padding:18px;border-radius:12px;box-shadow:0 8px 24px rgba(10,20,20,0.04)}
+    .card h2{margin:0 0 12px 0;color:var(--teal);font-size:18px}
+    .card ol{margin:0;padding-left:18px;color:var(--muted);line-height:1.6}
+    .card ol li{margin-bottom:12px;font-weight:600}
+    .card strong{color:#083a39}
+    .neg-title{display:flex;align-items:center;gap:10px;margin-bottom:10px;color:var(--danger);font-weight:800}
+    .neg-title .box{width:40px;height:40px;border-radius:8px;background:#ffecec;display:flex;align-items:center;justify-content:center;border:2px solid #f2bebe}
+    .small{font-size:13px;color:#6f8b8a;margin-top:10px}
+
+    /* list inside negative card */
+    .sublist{margin:6px 0 0 18px;color:#5c6e6d;font-weight:500}
+
+    footer{margin-top:20px;text-align:center;color:#6e8a89;font-size:13px}
+
+    @media (max-width:900px){
+      .grid{grid-template-columns:1fr}
+      .badge{width:120px;height:120px;font-size:40px}
+      .hero h1{font-size:18px}
+    }
   </style>
 </head>
 <body>
-
-  <div class="topbar" id="topbar">Cadeados desbloqueados: <span id="count">0</span>/6</div>
-
-  <div class="center-screen" id="intro">
-    <div class="card">
-      <h1>Desbloqueie o avião para seguir viagem</h1>
-      <p>Cada janela do avião é uma letra da senha.</p>
-
-      <div class="plane-wrap">
-        <!-- Avião SVG -->
-        <svg class="plane-svg" viewBox="0 0 1200 360" xmlns="http://www.w3.org/2000/svg">
-          <rect x="60" y="110" rx="60" ry="60" width="980" height="140" fill="#90cdf4" />
-          <ellipse cx="1020" cy="180" rx="60" ry="70" fill="#7fb6e9"/>
-          <path d="M60 110 L20 80 L60 180 Z" fill="#7fb6e9"/>
-          <path d="M320 240 L640 140 L760 160 L420 260 Z" fill="#60a5fa"/>
-          <path d="M700 40 L820 100 L680 120 L620 60 Z" fill="#60a5fa"/>
-          <!-- Janelas -->
-          <circle cx="250" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="320" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="390" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="460" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="530" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="600" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="670" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="740" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="810" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="880" cy="160" r="22" fill="#e6f6ff"/>
-          <circle cx="950" cy="160" r="22" fill="#e6f6ff"/>
-        </svg>
-        <!-- Inputs -->
-        <div class="windows" id="windowsContainer"></div>
+  <div class="container">
+    <div class="header">
+      <div class="badge" aria-hidden="true">
+        <div class="inner">
+          19%<div class="sub">da Geração Z</div>
+        </div>
       </div>
 
-      <div class="hint">Dica: o que cada envelope tem em comum?</div>
-
-      <button id="introBtn">Decolar</button>
-      <div id="introMsg" style="margin-top:10px;font-weight:700;color:crimson;"></div>
+      <div class="hero" role="region" aria-label="Resumo">
+        <h1>Impactos do uso do celular na Geração Z</h1>
+        <p>Dizem sentir uma responsabilidade pessoal de melhorar o mundo — o celular como ferramenta de conexão, aprendizado e expressão.</p>
+        <div class="meta">Bem-estar digital • Conectividade • Produtividade</div>
+      </div>
     </div>
+
+    <div class="grid">
+      <section class="card" aria-labelledby="positivos">
+        <h2 id="positivos">✅ Impactos Positivos</h2>
+        <ol>
+          <li><strong>Comunicação rápida e constante</strong><br>
+            O celular permite que a Geração Z se conecte com amigos, família e colegas em qualquer lugar, fortalecendo vínculos e ampliando redes sociais.
+          </li>
+
+          <li><strong>Acesso fácil à informação</strong><br>
+            Com o celular, é possível pesquisar qualquer assunto em poucos segundos, ajudando em estudos, trabalho e aprendizado autônomo.
+          </li>
+
+          <li><strong>Oportunidades profissionais</strong><br>
+            Muitos jovens usam o celular para aprender habilidades online, empreender, criar conteúdo e até conseguir renda pelas redes sociais.
+          </li>
+
+          <li><strong>Organização e produtividade</strong><br>
+            Aplicativos de agenda, lembretes, finanças e estudos ajudam a organizar a rotina e melhorar o desempenho escolar/profissional.
+          </li>
+
+          <li><strong>Expressão pessoal e criatividade</strong><br>
+            Ferramentas de edição, redes sociais e plataformas de vídeo permitem que a Geração Z explore identidade, criatividade e talentos.
+          </li>
+        </ol>
+      </section>
+
+      <aside class="card" aria-labelledby="negativos">
+        <div class="neg-title"><div class="box">❌</div><div id="negativos">Impactos Negativos</div></div>
+
+        <ol>
+          <li><strong>Dependência e vício digital</strong><br>
+            O uso excessivo pode causar ansiedade, dificuldade de concentração e sensação de que não se pode ficar “offline”.
+          </li>
+
+          <li><strong>Problemas de saúde física</strong><br>
+            Passar muito tempo no celular pode gerar:
+            <ul class="sublist">
+              <li>dores no pescoço e nas costas</li>
+              <li>problemas de visão</li>
+              <li>má postura</li>
+              <li>sono irregular (pela luz da tela)</li>
+            </ul>
+          </li>
+
+          <li><strong>Comparações sociais e baixa autoestima</strong><br>
+            As redes sociais criam padrões irreais de beleza, sucesso e felicidade, o que pode afetar a saúde mental.
+          </li>
+
+          <li><strong>Prejuízo acadêmico</strong><br>
+            O celular pode distrair durante aulas e estudos, diminuindo o rendimento e prejudicando o foco.
+          </li>
+
+          <li><strong>Redução da interação presencial</strong><br>
+            A comunicação digital às vezes substitui conversas reais, diminuindo habilidades sociais e aumentando o isolamento.
+          </li>
+        </ol>
+
+        <div class="small">Dicas rápidas: usar modos "não perturbe", definir limites de tempo de uso e priorizar interações presenciais.</div>
+      </aside>
+    </div>
+
+    <footer>
+      Criado com ❤️ — conteúdo e layout prontos para publicação.
+    </footer>
   </div>
-
-  <div id="mapArea" style="display:none; padding:12px;">
-    <div id="map"></div>
-  </div>
-
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script>
-    const introPassword = 'continentes';
-    const vbW = 1200, vbH = 360;
-
-    const windowCoords = [
-      {cx:250,cy:160}, {cx:320,cy:160}, {cx:390,cy:160},
-      {cx:460,cy:160}, {cx:530,cy:160}, {cx:600,cy:160},
-      {cx:670,cy:160}, {cx:740,cy:160}, {cx:810,cy:160},
-      {cx:880,cy:160}, {cx:950,cy:160}
-    ];
-
-    const windowsContainer = document.getElementById('windowsContainer');
-    const inputs = [];
-    introPassword.split('').forEach((_,i)=>{
-      const div = document.createElement('div');
-      div.className = 'win';
-      div.style.left = (windowCoords[i].cx/vbW*100)+'%';
-      div.style.top  = (windowCoords[i].cy/vbH*100)+'%';
-      const inp = document.createElement('input');
-      inp.maxLength=1;
-      inp.dataset.index=i;
-      inp.addEventListener('input',e=>{
-        e.target.value = e.target.value.toUpperCase();
-        if(e.target.value && i<introPassword.length-1) inputs[i+1].focus();
-      });
-      div.appendChild(inp);
-      windowsContainer.appendChild(div);
-      inputs.push(inp);
-    });
-
-    document.getElementById('introBtn').onclick = ()=>{
-      const attempt = inputs.map(i=>i.value).join('').toLowerCase();
-      if(attempt===introPassword){
-        document.getElementById('intro').style.display='none';
-        document.getElementById('mapArea').style.display='block';
-        document.getElementById('map').style.display='block';
-        document.getElementById('topbar').style.display='block';
-        initMap();
-      } else {
-        document.getElementById('introMsg').textContent='Senha incorreta!';
-      }
-    };
-
-    // ----- MAPA -----
-    let map;
-    const continentLocks = [
-      { id:'america', title:'América', coords:[40.7128, -74.0060], password:'arara azul', unlocked:false },
-      { id:'europa', title:'Europa', coords:[51.5074, -0.1278], password:'olimpíadas', unlocked:false },
-      { id:'oceania', title:'Oceania', coords:[-33.8688,151.2093], password:'Austrália', unlocked:false },
-      { id:'asia', title:'Ásia', coords:[35.6762,139.6503], password:'China', unlocked:false },
-      { id:'africa', title:'África', coords:[-1.2921,36.8219], password:'Rio Nilo', unlocked:false },
-      { id:'antarctica', title:'Antártica', coords:[-82,135], password:'clima', unlocked:false }
-    ];
-    let unlockedCount=0;
-
-    function initMap(){
-      map=L.map('map').setView([20,0],2);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
-
-      continentLocks.forEach(lock=>{
-        lock.marker=L.marker(lock.coords,{icon:L.divIcon({html:'🔒',iconSize:[32,32]})}).addTo(map);
-        const html=`
-          <div>
-            <div style="font-weight:700">${lock.title}</div>
-            <div id="msg-${lock.id}"></div>
-            <input id="input-${lock.id}" placeholder="Senha" style="width:100%;margin-top:6px"/>
-            <button id="btn-${lock.id}">OK</button>
-          </div>`;
-        lock.marker.bindPopup(html);
-        lock.marker.on('popupopen',()=>{
-          const inp=document.getElementById('input-'+lock.id);
-          const btn=document.getElementById('btn-'+lock.id);
-          const msg=document.getElementById('msg-'+lock.id);
-          btn.onclick=()=>attemptLock(lock,inp.value,msg);
-        });
-      });
-    }
-
-    function attemptLock(lock,attemptRaw,msgEl){
-      if(attemptRaw===lock.password){
-        lock.unlocked=true;
-        unlockedCount++;
-        document.getElementById('count').textContent=unlockedCount;
-        lock.marker.setIcon(L.divIcon({html:'🔓',iconSize:[32,32]}));
-        msgEl.innerHTML='<span style="color:green">Correto!</span>';
-        if(unlockedCount === continentLocks.length){
-          setTimeout(()=>{
-            L.popup({closeOnClick:false,autoClose:false})
-              .setLatLng(map.getCenter())
-              .setContent('<div style="font-weight:700;">Parabéns — você desbloqueou todos os cadeados dos continentes! Boa viagem! ✈️</div>')
-              .openOn(map);
-          },300);
-        }
-      } else {
-        msgEl.innerHTML='<span style="color:red">Errado</span>';
-      }
-    }
-  </script>
 </body>
 </html>
